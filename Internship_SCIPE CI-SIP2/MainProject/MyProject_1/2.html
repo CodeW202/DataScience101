@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>MyProject_1 Multi Column Stacked CSV Chart</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 25px;
+      background: #f4f6f8;
+    }
+
+    h1 {
+      text-align: center;
+    }
+
+    .box {
+      background: white;
+      padding: 18px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    }
+
+    label {
+      font-weight: bold;
+      display: block;
+      margin-top: 12px;
+      margin-bottom: 5px;
+    }
+
+    select, input {
+      width: 100%;
+      padding: 9px;
+      font-size: 15px;
+      border: 1px solid #aaa;
+      border-radius: 6px;
+      box-sizing: border-box;
+    }
+
+    select[multiple] {
+      height: 150px;
+    }
+
+    button {
+      padding: 9px 14px;
+      margin-top: 10px;
+      margin-right: 8px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      background: #222;
+      color: white;
+      font-size: 14px;
+    }
+
+    button:hover {
+      background: #444;
+    }
+
+    #checkboxArea,
+    #filterArea {
+      max-height: 320px;
+      overflow-y: auto;
+      border: 1px solid #ccc;
+      padding: 10px;
+      background: #fafafa;
+      border-radius: 8px;
+      margin-top: 10px;
+    }
+
+    .filterBox {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 14px;
+    }
+
+    .filterTitle {
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    .filterButtons button {
+      padding: 6px 9px;
+      font-size: 12px;
+      margin-top: 4px;
+      background: #555;
+    }
+
+    .filterList {
+      max-height: 180px;
+      overflow-y: auto;
+      border-top: 1px solid #eee;
+      padding-top: 8px;
+      margin-top: 8px;
+    }
+
+    .checkItem {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 14px;
+      font-weight: normal;
+    }
+
+    .checkItem input {
+      width: auto;
+      margin-right: 8px;
+    }
+
+    #chartBox {
+      height: 720px;
+    }
+
+    canvas {
+      background: white;
+      border-radius: 10px;
+      padding: 10px;
+    }
+
+    .smallText {
+      color: #555;
+      font-size: 14px;
+    }
+
+    .warningText {
+      color: #a33;
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    #tableBox {
+      max-height: 520px;
+      overflow: auto;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: white;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 14px;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: #222;
+      color: white;
+      padding: 8px;
+      border: 1px solid #444;
+      text-align: left;
+    }
+
+    td {
+      padding: 8px;
+      border: 1px solid #ddd;
+    }
+
+    tr:nth-child(even) {
+      background: #f7f7f7;
+    }
+
+    .totalBox {
+      background: #eef3ff;
+      border: 1px solid #c9d7ff;
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 12px;
+      font-size: 16px;
+    }
+
+    .bigNumber {
+      font-size: 28px;
+      font-weight: bold;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>MyProject_1 Multi Column Stacked CSV Chart</h1>
+
+  <div class="box">
+    <label>Choose CSV file</label>
+    <select id="fileSelect"></select>
+
+    <label>X column</label>
+    <select id="xColumnSelect"></select>
+
+    <label>Checklist columns / stacked category columns</label>
+    <select id="categoryColumnSelect" multiple size="6"></select>
+    <p class="smallText">
+      Hold Command on Mac or Ctrl on Windows to choose multiple columns.
+      Example: field_group + degree_group + award_level_name.
+    </p>
+
+    <label>Value column</label>
+    <select id="valueColumnSelect"></select>
+
+    <label>Multiple filter columns</label>
+    <select id="filterColumnSelect" multiple size="6"></select>
+    <p class="smallText">
+      These are separate filters. Example: choose year + major_name + degree_group.
+      Then each column gets its own checklist.
+    </p>
+
+    <label>Search checklist values</label>
+    <input type="text" id="searchBox" placeholder="Search unique value...">
+
+    <button onclick="selectAll()">Select All</button>
+    <button onclick="clearAll()">Clear All</button>
+    <button onclick="selectVisible()">Select Visible</button>
+    <button onclick="clearVisible()">Clear Visible</button>
+    <button onclick="updateChart()">Update Chart</button>
+
+    <div class="totalBox">
+      <div>Total from selected filters</div>
+      <div class="bigNumber" id="totalText">0</div>
+      <div class="smallText" id="tableInfoText"></div>
+    </div>
+
+    <p class="smallText" id="statusText"></p>
+    <p class="warningText" id="warningText"></p>
+  </div>
+
+  <div class="box">
+    <h2>Checklist of unique combined values for stacked chart</h2>
+    <div id="checkboxArea"></div>
+  </div>
+
+  <div class="box">
+    <h2>Multiple Filter Checklists</h2>
+    <p class="smallText">
+      Each filter column is separate. A row must match all checked filters to be counted.
+    </p>
+    <div id="filterArea"></div>
+  </div>
+
+  <div class="box" id="chartBox">
+    <canvas id="mainChart"></canvas>
+  </div>
+
+  <div class="box">
+    <h2>Printed Table Result</h2>
+    <p class="smallText">
+      This table uses the same selected filters as the chart.
+    </p>
+    <div id="tableBox">
+      <table id="resultTable"></table>
+    </div>
+  </div>
+
+<script>
+const csvFiles = [
+  {
+    name: "award_level_name RAW degree",
+    path: "degree_raw_csv_with_year_range_in_filename/award_level_name_RAW_search_1970-2025_usable_2008-2024.csv"
+  },
+  {
+    name: "cip_code RAW degree",
+    path: "degree_raw_csv_with_year_range_in_filename/cip_code_RAW_search_1970-2025_usable_2008-2024.csv"
+  },
+  {
+    name: "degree ALL year summary",
+    path: "degree_raw_csv_with_year_range_in_filename/degree_ALL_year_summary_search_1970-2025_usable_2008-2024.csv"
+  },
+  {
+    name: "degree column year range summary",
+    path: "degree_raw_csv_with_year_range_in_filename/degree_column_year_range_summary_search_1970-2025_usable_2008-2024-UserNameUnknow.csv"
+  },
+  {
+    name: "degree_group RAW degree",
+    path: "degree_raw_csv_with_year_range_in_filename/degree_group_RAW_search_1970-2025_usable_2008-2024.csv"
+  },
+  {
+    name: "degree RAW full",
+    path: "degree_raw_csv_with_year_range_in_filename/degree_RAW_search_1970-2025_usable_2008-2024.csv"
+  },
+  {
+    name: "degree USABLE year summary",
+    path: "degree_raw_csv_with_year_range_in_filename/degree_USABLE_year_summary_search_1970-2025_usable_2008-2024.csv"
+  },
+  {
+    name: "field_group RAW degree",
+    path: "degree_raw_csv_with_year_range_in_filename/field_group_RAW_search_1970-2025_usable_2008-2024.csv"
+  },
+  {
+    name: "field_subgroup RAW degree",
+    path: "degree_raw_csv_with_year_range_in_filename/field_subgroup_RAW_search_1970-2025_usable_2008-2024.csv"
+  },
+  {
+    name: "major_name RAW degree",
+    path: "degree_raw_csv_with_year_range_in_filename/major_name_RAW_search_1970-2025_usable_2008-2024.csv"
+  },
+  {
+    name: "job gain loss",
+    path: "pre_formula_job_csv/job_gain_loss_data_1970_2025.csv"
+  },
+  {
+    name: "startup death",
+    path: "pre_formula_startup_death_csv/startup_death_data_1970_2025.csv"
+  }
+];
+
+let currentData = [];
+let currentColumns = [];
+let chart = null;
+
+const fileSelect = document.getElementById("fileSelect");
+const xColumnSelect = document.getElementById("xColumnSelect");
+const categoryColumnSelect = document.getElementById("categoryColumnSelect");
+const valueColumnSelect = document.getElementById("valueColumnSelect");
+const filterColumnSelect = document.getElementById("filterColumnSelect");
+const checkboxArea = document.getElementById("checkboxArea");
+const filterArea = document.getElementById("filterArea");
+const searchBox = document.getElementById("searchBox");
+const statusText = document.getElementById("statusText");
+const warningText = document.getElementById("warningText");
+const resultTable = document.getElementById("resultTable");
+const totalText = document.getElementById("totalText");
+const tableInfoText = document.getElementById("tableInfoText");
+
+function setupFileList() {
+  csvFiles.forEach((file, index) => {
+    const option = document.createElement("option");
+    option.value = index;
+    option.textContent = file.name;
+    fileSelect.appendChild(option);
+  });
+}
+
+function loadCSV() {
+  const selectedFile = csvFiles[fileSelect.value];
+
+  currentData = [];
+  currentColumns = [];
+  checkboxArea.innerHTML = "";
+  warningText.textContent = "";
+  statusText.textContent = "Loading: " + selectedFile.path;
+
+  if (chart) {
+    chart.destroy();
+    chart = null;
+  }
+
+  Papa.parse(selectedFile.path, {
+    download: true,
+    header: true,
+    skipEmptyLines: true,
+    dynamicTyping: false,
+
+    complete: function(results) {
+      currentData = results.data;
+      currentColumns = results.meta.fields || [];
+
+      statusText.textContent =
+        "Loaded " + currentData.length + " rows from " + selectedFile.name;
+
+      fillColumnDropdowns();
+      buildChecklist();
+      updateChart();
+    },
+
+    error: function(error) {
+      statusText.textContent =
+        "ERROR loading CSV. If you opened 1.html by double-clicking, use VS Code Live Server.";
+      warningText.textContent = "CSV did not load.";
+      console.error(error);
+    }
+  });
+}
+
+function fillColumnDropdowns() {
+  xColumnSelect.innerHTML = "";
+  categoryColumnSelect.innerHTML = "";
+  valueColumnSelect.innerHTML = "";
+  filterColumnSelect.innerHTML = "";
+
+  currentColumns.forEach(col => {
+    xColumnSelect.appendChild(new Option(col, col));
+    categoryColumnSelect.appendChild(new Option(col, col));
+    valueColumnSelect.appendChild(new Option(col, col));
+    filterColumnSelect.appendChild(new Option(col, col));
+  });
+
+  setDefaultColumns();
+}
+
+function setDefaultColumns() {
+  const cols = currentColumns;
+
+  if (cols.includes("year")) {
+    xColumnSelect.value = "year";
+  }
+
+  const categoryChoices = [
+    "major_name",
+    "field_group",
+    "field_subgroup",
+    "degree_group",
+    "award_level_name",
+    "cip_code",
+    "industry_name",
+    "metric_name",
+    "column_name"
+  ];
+
+  let selectedCount = 0;
+
+  for (const option of categoryColumnSelect.options) {
+    option.selected = false;
+  }
+
+  for (const c of categoryChoices) {
+    if (cols.includes(c)) {
+      for (const option of categoryColumnSelect.options) {
+        if (option.value === c) {
+          option.selected = true;
+          selectedCount++;
+        }
+      }
+    }
+
+    if (selectedCount >= 2) {
+      break;
+    }
+  }
+
+  if (selectedCount === 0 && categoryColumnSelect.options.length > 0) {
+    categoryColumnSelect.options[0].selected = true;
+  }
+
+  const valueChoices = [
+    "degree_count",
+    "job_gain",
+    "job_loss",
+    "job_total",
+    "startup_count",
+    "death_count",
+    "company_total",
+    "degree_total",
+    "raw_rows",
+    "value"
+  ];
+
+  for (const c of valueChoices) {
+    if (cols.includes(c)) {
+      valueColumnSelect.value = c;
+      break;
+    }
+  }
+
+  const filterChoices = [
+    "year",
+    "major_name",
+    "field_group",
+    "field_subgroup",
+    "degree_group",
+    "award_level_name",
+    "cip_code",
+    "industry_name",
+    "metric_name"
+  ];
+
+  let filterSelectedCount = 0;
+
+  for (const option of filterColumnSelect.options) {
+    option.selected = false;
+  }
+
+  for (const c of filterChoices) {
+    if (cols.includes(c)) {
+      for (const option of filterColumnSelect.options) {
+        if (option.value === c) {
+          option.selected = true;
+          filterSelectedCount++;
+        }
+      }
+    }
+
+    if (filterSelectedCount >= 3) {
+      break;
+    }
+  }
+
+  if (filterSelectedCount === 0 && filterColumnSelect.options.length > 0) {
+    filterColumnSelect.options[0].selected = true;
+  }
+}
+
+function cleanValue(value) {
+  if (value === null || value === undefined) return "";
+
+  value = String(value).trim();
+
+  const lower = value.toLowerCase();
+
+  if (
+    value === "" ||
+    lower === "nan" ||
+    lower === "none" ||
+    lower === "null" ||
+    lower === "unknown"
+  ) {
+    return "";
+  }
+
+  return value;
+}
+
+function toNumber(value) {
+  if (value === null || value === undefined) return 0;
+
+  let cleaned = String(value)
+    .replace(/,/g, "")
+    .replace(/\$/g, "")
+    .replace(/%/g, "")
+    .trim();
+
+  let number = Number(cleaned);
+
+  if (isNaN(number)) return 0;
+
+  return number;
+}
+
+function formatNumber(value) {
+  return Number(value).toLocaleString();
+}
+
+function getSelectedCategoryColumns() {
+  return Array.from(categoryColumnSelect.selectedOptions).map(option => option.value);
+}
+
+function getSelectedFilterColumns() {
+  return Array.from(filterColumnSelect.selectedOptions).map(option => option.value);
+}
+
+function makeCategoryValue(row, categoryCols) {
+  const parts = categoryCols
+    .map(col => cleanValue(row[col]))
+    .filter(value => value !== "");
+
+  return parts.join(" / ");
+}
+
+function buildChecklist() {
+  const categoryCols = getSelectedCategoryColumns();
+
+  checkboxArea.innerHTML = "";
+  warningText.textContent = "";
+
+  if (categoryCols.length === 0) {
+    statusText.textContent = "Choose at least one checklist column.";
+    return;
+  }
+
+  const uniqueSet = new Set();
+
+  currentData.forEach(row => {
+    const value = makeCategoryValue(row, categoryCols);
+
+    if (value !== "") {
+      uniqueSet.add(value);
+    }
+  });
+
+  const uniqueValues = Array.from(uniqueSet).sort();
+
+  uniqueValues.forEach(value => {
+    const label = document.createElement("label");
+    label.className = "checkItem";
+    label.dataset.searchText = value.toLowerCase();
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.value = value;
+    checkbox.checked = true;
+
+    checkbox.addEventListener("change", updateChart);
+
+    label.appendChild(checkbox);
+    label.appendChild(document.createTextNode(value));
+
+    checkboxArea.appendChild(label);
+  });
+
+  buildFilterChecklists();
+
+  statusText.textContent =
+    "Unique combined checklist values in " + categoryCols.join(" + ") + ": " + uniqueValues.length;
+
+  if (uniqueValues.length > 80) {
+    warningText.textContent =
+      "Warning: You selected many unique values. The chart may be crowded. Use search and clear/select visible.";
+  }
+}
+
+function buildFilterChecklists() {
+  const filterCols = getSelectedFilterColumns();
+
+  filterArea.innerHTML = "";
+
+  filterCols.forEach(col => {
+    const uniqueSet = new Set();
+
+    currentData.forEach(row => {
+      const value = cleanValue(row[col]);
+
+      if (value !== "") {
+        uniqueSet.add(value);
+      }
+    });
+
+    const uniqueValues = Array.from(uniqueSet).sort((a, b) => {
+      const na = Number(a);
+      const nb = Number(b);
+
+      if (!isNaN(na) && !isNaN(nb)) {
+        return na - nb;
+      }
+
+      return String(a).localeCompare(String(b));
+    });
+
+    const filterBox = document.createElement("div");
+    filterBox.className = "filterBox";
+    filterBox.dataset.filterColumn = col;
+
+    const title = document.createElement("div");
+    title.className = "filterTitle";
+    title.textContent = col + " filter checklist (" + uniqueValues.length + ")";
+    filterBox.appendChild(title);
+
+    const buttonBox = document.createElement("div");
+    buttonBox.className = "filterButtons";
+
+    const selectButton = document.createElement("button");
+    selectButton.textContent = "Select " + col;
+    selectButton.onclick = function() {
+      filterBox.querySelectorAll("input[type='checkbox']").forEach(box => {
+        box.checked = true;
+      });
+      updateChart();
+    };
+
+    const clearButton = document.createElement("button");
+    clearButton.textContent = "Clear " + col;
+    clearButton.onclick = function() {
+      filterBox.querySelectorAll("input[type='checkbox']").forEach(box => {
+        box.checked = false;
+      });
+      updateChart();
+    };
+
+    buttonBox.appendChild(selectButton);
+    buttonBox.appendChild(clearButton);
+    filterBox.appendChild(buttonBox);
+
+    const list = document.createElement("div");
+    list.className = "filterList";
+
+    uniqueValues.forEach(value => {
+      const label = document.createElement("label");
+      label.className = "checkItem";
+      label.dataset.searchText = (col + " " + value).toLowerCase();
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.value = value;
+      checkbox.dataset.filterColumn = col;
+      checkbox.checked = true;
+
+      checkbox.addEventListener("change", updateChart);
+
+      label.appendChild(checkbox);
+      label.appendChild(document.createTextNode(value));
+
+      list.appendChild(label);
+    });
+
+    filterBox.appendChild(list);
+    filterArea.appendChild(filterBox);
+  });
+
+  filterChecklistSearch();
+}
+
+function getCheckedValues() {
+  const checked = [];
+  const boxes = checkboxArea.querySelectorAll("input[type='checkbox']");
+
+  boxes.forEach(box => {
+    if (box.checked) {
+      checked.push(box.value);
+    }
+  });
+
+  return checked;
+}
+
+function getCheckedFilterMap() {
+  const filterMap = {};
+  const filterBoxes = filterArea.querySelectorAll(".filterBox");
+
+  filterBoxes.forEach(filterBox => {
+    const col = filterBox.dataset.filterColumn;
+    const checkedBoxes = filterBox.querySelectorAll("input[type='checkbox']:checked");
+
+    filterMap[col] = new Set();
+
+    checkedBoxes.forEach(box => {
+      filterMap[col].add(box.value);
+    });
+  });
+
+  return filterMap;
+}
+
+function rowPassesMultipleFilters(row, filterMap) {
+  for (const col in filterMap) {
+    const value = cleanValue(row[col]);
+
+    if (!filterMap[col].has(value)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function selectAll() {
+  const boxes = document.querySelectorAll("input[type='checkbox']");
+  boxes.forEach(box => box.checked = true);
+  updateChart();
+}
+
+function clearAll() {
+  const boxes = document.querySelectorAll("input[type='checkbox']");
+  boxes.forEach(box => box.checked = false);
+  updateChart();
+}
+
+function selectVisible() {
+  const items = document.querySelectorAll(".checkItem");
+
+  items.forEach(item => {
+    if (item.style.display !== "none") {
+      const box = item.querySelector("input[type='checkbox']");
+      box.checked = true;
+    }
+  });
+
+  updateChart();
+}
+
+function clearVisible() {
+  const items = document.querySelectorAll(".checkItem");
+
+  items.forEach(item => {
+    if (item.style.display !== "none") {
+      const box = item.querySelector("input[type='checkbox']");
+      box.checked = false;
+    }
+  });
+
+  updateChart();
+}
+
+function filterChecklistSearch() {
+  const search = searchBox.value.toLowerCase();
+  const items = document.querySelectorAll(".checkItem");
+
+  items.forEach(item => {
+    const text = item.dataset.searchText || item.innerText.toLowerCase();
+
+    if (text.includes(search)) {
+      item.style.display = "block";
+    } else {
+      item.style.display = "none";
+    }
+  });
+}
+
+function updateChart() {
+  const xCol = xColumnSelect.value;
+  const categoryCols = getSelectedCategoryColumns();
+  const valueCol = valueColumnSelect.value;
+
+  warningText.textContent = "";
+
+  if (!xCol || !valueCol) {
+    statusText.textContent = "Choose X column and value column.";
+    return;
+  }
+
+  if (categoryCols.length === 0) {
+    statusText.textContent = "Choose at least one checklist column.";
+    return;
+  }
+
+  const checkedValues = getCheckedValues();
+  const checkedSet = new Set(checkedValues);
+  const filterMap = getCheckedFilterMap();
+
+  if (checkedValues.length === 0) {
+    if (chart) {
+      chart.destroy();
+      chart = null;
+    }
+
+    statusText.textContent = "No checklist values selected.";
+    printTable([], xCol, categoryCols, valueCol, 0, 0);
+    return;
+  }
+
+  const grouped = {};
+  let totalValue = 0;
+  let rowsUsed = 0;
+
+  currentData.forEach(row => {
+    const xValue = cleanValue(row[xCol]);
+    const categoryValue = makeCategoryValue(row, categoryCols);
+    const numberValue = toNumber(row[valueCol]);
+
+    if (xValue === "") return;
+    if (categoryValue === "") return;
+    if (!checkedSet.has(categoryValue)) return;
+    if (!rowPassesMultipleFilters(row, filterMap)) return;
+
+    if (!grouped[xValue]) {
+      grouped[xValue] = {};
+    }
+
+    if (!grouped[xValue][categoryValue]) {
+      grouped[xValue][categoryValue] = 0;
+    }
+
+    grouped[xValue][categoryValue] += numberValue;
+    totalValue += numberValue;
+    rowsUsed++;
+  });
+
+  const xLabels = Object.keys(grouped).sort((a, b) => {
+    const na = Number(a);
+    const nb = Number(b);
+
+    if (!isNaN(na) && !isNaN(nb)) {
+      return na - nb;
+    }
+
+    return String(a).localeCompare(String(b));
+  });
+
+  const activeCategorySet = new Set();
+
+  xLabels.forEach(x => {
+    Object.keys(grouped[x]).forEach(category => {
+      activeCategorySet.add(category);
+    });
+  });
+
+  const activeCategories = Array.from(activeCategorySet).sort();
+
+  const datasets = activeCategories.map(category => {
+    return {
+      label: category,
+      data: xLabels.map(x => grouped[x]?.[category] || 0),
+      borderWidth: 1
+    };
+  });
+
+  const tableRows = [];
+
+  xLabels.forEach(x => {
+    activeCategories.forEach(category => {
+      const value = grouped[x]?.[category] || 0;
+
+      if (value !== 0) {
+        tableRows.push({
+          xValue: x,
+          categoryValue: category,
+          value: value
+        });
+      }
+    });
+  });
+
+  printTable(tableRows, xCol, categoryCols, valueCol, totalValue, rowsUsed);
+
+  statusText.textContent =
+    "Chart updated. X = " + xCol +
+    ", Category columns = " + categoryCols.join(" + ") +
+    ", Value = " + valueCol +
+    ", Selected chart values = " + checkedValues.length +
+    ", Rows used = " + rowsUsed;
+
+  drawChart(xLabels, datasets, xCol, categoryCols.join(" + "), valueCol);
+}
+
+function printTable(tableRows, xCol, categoryCols, valueCol, totalValue, rowsUsed) {
+  resultTable.innerHTML = "";
+
+  totalText.textContent = formatNumber(totalValue);
+
+  tableInfoText.textContent =
+    "Rows used: " + rowsUsed.toLocaleString() +
+    " | Table rows: " + tableRows.length.toLocaleString();
+
+  const thead = document.createElement("thead");
+  const headerRow = document.createElement("tr");
+
+  const headers = [
+    xCol,
+    categoryCols.join(" + "),
+    valueCol
+  ];
+
+  headers.forEach(header => {
+    const th = document.createElement("th");
+    th.textContent = header;
+    headerRow.appendChild(th);
+  });
+
+  thead.appendChild(headerRow);
+  resultTable.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+
+  tableRows.forEach(row => {
+    const tr = document.createElement("tr");
+
+    const tdX = document.createElement("td");
+    tdX.textContent = row.xValue;
+    tr.appendChild(tdX);
+
+    const tdCategory = document.createElement("td");
+    tdCategory.textContent = row.categoryValue;
+    tr.appendChild(tdCategory);
+
+    const tdValue = document.createElement("td");
+    tdValue.textContent = formatNumber(row.value);
+    tr.appendChild(tdValue);
+
+    tbody.appendChild(tr);
+  });
+
+  resultTable.appendChild(tbody);
+}
+
+function drawChart(labels, datasets, xCol, categoryText, valueCol) {
+  const ctx = document.getElementById("mainChart").getContext("2d");
+
+  if (chart) {
+    chart.destroy();
+  }
+
+  chart = new Chart(ctx, {
+    type: "bar",
+
+    data: {
+      labels: labels,
+      datasets: datasets
+    },
+
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+
+      plugins: {
+        title: {
+          display: true,
+          text: "Stacked Chart: " + valueCol + " by " + xCol + " and " + categoryText,
+          font: {
+            size: 18
+          }
+        },
+
+        legend: {
+          display: true,
+          position: "right",
+          labels: {
+            boxWidth: 12,
+            font: {
+              size: 11
+            }
+          }
+        },
+
+        tooltip: {
+          mode: "index",
+          intersect: false
+        }
+      },
+
+      scales: {
+        x: {
+          stacked: true,
+          title: {
+            display: true,
+            text: xCol
+          }
+        },
+
+        y: {
+          stacked: true,
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: valueCol
+          }
+        }
+      }
+    }
+  });
+}
+
+fileSelect.addEventListener("change", loadCSV);
+
+xColumnSelect.addEventListener("change", updateChart);
+
+categoryColumnSelect.addEventListener("change", function() {
+  buildChecklist();
+  updateChart();
+});
+
+filterColumnSelect.addEventListener("change", function() {
+  buildFilterChecklists();
+  updateChart();
+});
+
+valueColumnSelect.addEventListener("change", updateChart);
+
+searchBox.addEventListener("keyup", filterChecklistSearch);
+
+setupFileList();
+loadCSV();
+</script>
+
+</body>
+</html>
