@@ -21,4 +21,4 @@ FullTest
 #Fail Html web project and random image
 MyProject_1
 
-#Note I try to upload the cvs file but due to too large so i just upload my code instead
+#Note I try to upload the cvs file but due to too large, so i just upload my code instead
