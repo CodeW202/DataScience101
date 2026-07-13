@@ -1,5 +1,7 @@
 # This is an opensource project for "Post-Degree Analysis Traditional Career or Startup" Calculator using dataset from 3 project:
+
 #1_Degree, 2_Job, 3_Company then combine to FullTest, then using chart.js for MyProject_1
+
 #MyProject_1 is fail, due to not create a server for html or too much data
 
 #Sorry about this, project is very unorganized so be Warned
