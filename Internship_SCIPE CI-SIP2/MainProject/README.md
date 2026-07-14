@@ -4,6 +4,8 @@
 
 #MyProject_1 is fail, due to not create a server for html or too much data
 
+##########################################################################################
+
 #Sorry about this, project is very unorganized so be Warned
 
 #Due to privacy this is the only change:
@@ -17,6 +19,8 @@ My UserName - YourUserName123
 #Html code is incomplete
 
 #Some file is empty and move to different folder or duplicate
+
+##########################################################################################
 
 #This is the raw folder for each project individually:
 
